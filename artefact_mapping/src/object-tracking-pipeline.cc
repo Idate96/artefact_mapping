@@ -73,7 +73,7 @@ void ObjectTrackingPipeline::imageCallback(
   std::vector<Observation> observations;
   while (tracker_.getFinishedTrack(&observations)) {
     VLOG(1) << "Triangulate track with size " << observations.size();
-    triangulateTracks(observations);
+    triangulateTracks(observations);artefact_msg
   }
 
   if (FLAGS_publish_debug_images) {
@@ -142,18 +142,24 @@ void ObjectTrackingPipeline::triangulateTracks(
   VLOG(1) << "Triangulated landmark at " << W_landmark;
 
   geometry_msgs::PointStamped landmark_msg;
-  landmark_msg.header.frame_id = "odom";
+  landmark_msg.header.frame_id = FLAGS_odom_tf_frame;
   landmark_msg.header.stamp = observations.back().timestamp_;
   landmark_msg.point.x = W_landmark[0];
   landmark_msg.point.y = W_landmark[1];
   landmark_msg.point.z = W_landmark[2];
-  landmark_publisher_.publish(landmark_msg);
+  // landmark_publisher_.publish(landmark_msg);
 
-  artefact_msgs::Artefact artefact_msg;
-  artefact_msg.header = landmark_msg.header;
-  artefact_msg.landmark = landmark_msg;
+  geometry_msgs::PointStamped landmark_map;
+  landmark_map.header.frame_id = FLAGS_map_tf_frame;
+  landmark_map.header.stamp = observation.back().timestamp_;
+  transformPoint(FLAGS_map_frame, landmark_msg, landmark_map);
+  landmark_publisher_.publish(landmark_map);
+
+  artefact_msgs::Artefact artefact_map;
+  artefact_map.header = landmark_map.header;
+  artefact_map.landmark = landmark_map;
   std::sort(class_labels.begin(), class_labels.end()); // Report the most observed object class.
-  artefact_msg.class_label = (unsigned) class_labels[(int) class_labels.size()/2];
-  artefact_msg.quality = 0; // Placeholder, not implemented yet!
-  artefact_publisher_.publish(artefact_msg);
+  artefact_map.class_label = (unsigned) class_labels[(int) class_labels.size()/2];
+  artefact_map.quality = 0; // Placeholder, not implemented yet!
+  artefact_publisher_.publish(artefact_map);
 }
